@@ -20,9 +20,9 @@ namespace app\locker\helpers;
 class TinCanValidation {
 
 	public $status = 'passed'; //status of the submitted statement. passed or failed.
-	public $errors = array(); //used to report back errors if validation fails
-	public $statement;
-	public $user;
+	public $errors = array(); //error messages if validation fails
+	public $statement; //the statement submitted
+	public $user; //the user acount submitting the statement
 
 	public function __construct( $statement, $user ){
 
