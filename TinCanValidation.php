@@ -1028,14 +1028,14 @@ class TinCanValidation {
 						switch( $key ){
 							case 'usageType':
 							//@todo need to properly validate a IRI
-							if( !is_string($attachment['usageType']) ){
+							if( !is_string($value) ){
 								$this->status 	= 'failed';
 								$this->errors[] = 'Attachment: usageType is not a valid IRI.';
 							}
 							break;
 							case 'display':
 							//@todo need to properly detect valid language map
-							if( !is_array($attachment['display']) ){
+							if( !is_array($value) ){
 								$this->status 	= 'failed';
 								$this->errors[] = 'Attachment: display is not a valid language map.';
 							}
@@ -1048,27 +1048,27 @@ class TinCanValidation {
 							//}
 							break;
 							case 'length':
-							if( !is_integer($attachment['length']) ){
+							if( !is_integer($value) ){
 								$this->status 	= 'failed';
 								$this->errors[] = 'Attachment: length is not a valid integer.';
 							}
 							break;
 							case 'sha2':
-							if( base64_encode(base64_decode($attachment['sha2'])) !== $attachment['sha2'] ){
+							if( base64_encode(base64_decode($value)) !== $value ){
 								$this->status 	= 'failed';
 								$this->errors[] = 'Attachment: sha2 is not valid base64 encoded.';
 							}
 							break;
 							case 'fileUrl':
 							//@todo need to properly validate a IRL
-							if( !filter_var($attachment['fileUrl'], FILTER_VALIDATE_URL) ){
+							if( !filter_var($value, FILTER_VALIDATE_URL) ){
 								$this->status 	= 'failed';
 								$this->errors[] = 'Attachment: fileUrl is not a valid IRL.';
 							}
 							break;
 							case 'description':
 							//@todo need to properly detect valid language map
-							if( !is_array($attachment['description']) ){
+							if( !is_array($value) ){
 								$this->status 	= 'failed';
 								$this->errors[] = 'Attachment: description is not a valid language map.';
 							}
