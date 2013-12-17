@@ -439,58 +439,115 @@ class TinCanValidation {
 							$this->status 	= 'failed';
 							$this->errors[] = 'Object: definition needs to be an object.';
 						}
-					}
+					}else{
 
-					$definition_valid_keys = array('name', 
-						                     'description', 
-						                     'type', 
-						                     'moreInfo', 
-						                     'extensions', 
-						                     'Interaction properties');
+						$definition = $object['definition'];
 
-					//check activity object definition only has valid keys.
-					$definition_valid = $this->checkKeys($definition_keys, $definition_valid_keys);
+						$definition_valid_keys = array('name', 
+							                     	   'description', 
+							                     	   'type', 
+							                     	   'moreInfo', 
+							                     	   'extensions', 
+							                     	   'interactionType',
+							                     	   'correctResponsesPattern',
+							                     	   'choices',
+							                     	   'scale',
+							                     	   'source',
+							                     	   'target',
+							                     	   'steps');
 
-					if( $definition_valid === false ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'The object\'s definition has an invalid property.';
-						return false;
-					}
+						//check activity object definition only has valid keys.
+						$definition_valid = $this->checkKeys($definition_keys, $definition_valid_keys);
 
-					//now check definition keys are formated correctly
-					if( isset($object['definition']['name']) ){
-						if( !is_array($object['definition']['name']) ){
+						if( $definition_valid === false ){
 							$this->status 	= 'failed';
-							$this->errors[] = 'Object: definition: name needs to be a language map.';
+							$this->errors[] = 'The object\'s definition has an invalid property.';
+							return false;
 						}
-					}
 
-					if( isset($object['definition']['description']) ){
-						if( !is_array($object['definition']['description']) ){
-							$this->status 	= 'failed';
-							$this->errors[] = 'Object: definition: description needs to be a language map.';
+						//now check definition keys are formated correctly
+						if( isset($definition['name']) ){
+							if( !is_array($definition['name']) ){
+								$this->status 	= 'failed';
+								$this->errors[] = 'Object: definition: name needs to be a language map.';
+							}
 						}
-					}
 
-					if( isset($object['definition']['type']) ){
-						if( !filter_var($object['definition']['type'], FILTER_VALIDATE_URL) ){
-							$this->status 	= 'failed';
-							$this->errors[] = 'Object: definition: type needs to be a IRL.';
+						if( isset($definition['description']) ){
+							if( !is_array($object['definition']['description']) ){
+								$this->status 	= 'failed';
+								$this->errors[] = 'Object: definition: description needs to be a language map.';
+							}
 						}
-					}
 
-					if( isset($object['definition']['moreInfo']) ){
-						//@todo - not sure what an IL is
-					}
+						if( isset($definition['type']) ){
+							if( !filter_var($object['definition']['type'], FILTER_VALIDATE_URL) ){
+								$this->status 	= 'failed';
+								$this->errors[] = 'Object: definition: type needs to be a IRL.';
+							}
+						}
 
-					if( isset($object['definition']['Interaction properties']) ){
-						//@todo - not sure how to handle this.
-					}
+						if( isset($definition['moreInfo']) ){
+							//@todo - not sure what an IL is
+						}
 
-					if( isset($object['definition']['extensions']) ){
-						if( !is_array($object['definition']['extensions']) ){
-							$this->status 	= 'failed';
-							$this->errors[] = 'Object: definition: extensions need to be an object.';
+						if( isset($definition['interactionType']) ){
+							//check to see it type is set, if not, set to http://adlnet.gov/expapi/activities/cmi.interaction
+							$allowed_interaction_types = array('choice',
+															   'sequencing',
+															   'Likert',
+															   'Matching',
+															   'Performance',
+															   'true-false',
+															   'fill-in',
+															   'numeric',
+															   'other');
+							if( !in_array($definition['interactionType'], $allowed_interaction_types) ){
+								$this->status 	= 'failed';
+								$this->errors[] = 'Object: definition: interactionType is not valid.';
+							} 
+						}
+
+						if( isset($definition['correctResponsesPattern']) ){
+							//check to see it type is set, if not, set to http://adlnet.gov/expapi/activities/cmi.interaction
+							if( !is_array($definition['correctResponsesPattern']) ){
+								$this->status 	= 'failed';
+								$this->errors[] = 'Object: definition: correctResponsesPattern needs to be an array.';
+							}
+						}
+
+						if( isset($definition['choices'], $definition['scale'], $definition['source'], $definition['target'],$definition['steps']) ){
+
+							$check_valid_keys = array('id', 'description');
+
+							$loop = array('choices','scale','source','target','steps');
+
+							foreach( $loop as $l ){
+
+								//check activity object definition only has valid keys.
+								$is_valid = $this->checkKeys($definition[$l], $check_valid_keys);
+
+								if( $definition_valid === false ){
+									$this->status 	= 'failed';
+									$this->errors[] = 'Object: definition: $l has an invalid property.';
+									return false;
+								}
+
+								//these components all contain an id and description
+								if ( !array_key_exists('id', $definition[$l]) || !array_key_exists('description', $definition[$l])){
+									$this->status 	= 'failed';
+									$this->errors[] = 'Object: definition: $l needs to be an array with keys id and description.';
+								}
+
+							}
+
+						}
+
+						if( isset($definition['extensions']) ){
+							if( !is_array($definition['extensions']) ){
+								$this->status 	= 'failed';
+								$this->errors[] = 'Object: definition: extensions need to be an object.';
+							}
 						}
 					}
 					
@@ -687,18 +744,24 @@ class TinCanValidation {
 				}
 
 				if( isset($context['revision']) ){
-					//@todo if Statement's Object is an Agent or Group, don't save
-					if( !is_string($context['revision']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Context: revision must be a string.';
+					//If Statement's Object is an Agent or Group, don't save
+					$object_type = array('Agent', 'Group');
+					if( !in_array($this->statement['object']['objectType'], $object_type) ){
+						if( !is_string($context['revision']) ){
+							$this->status 	= 'failed';
+							$this->errors[] = 'Context: revision must be a string.';
+						}
 					}
 				}
 
 				if( isset($context['platform']) ){
-					//@todo if Statement's Object is an Agent or Group, don't save
-					if( !is_string($context['platform']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Context: platform must be a string.';
+					//If Statement's Object is an Agent or Group, don't save
+					$object_type = array('Agent', 'Group');
+					if( !in_array($this->statement['object']['objectType'], $object_type) ){
+						if( !is_string($context['platform']) ){
+							$this->status 	= 'failed';
+							$this->errors[] = 'Context: platform must be a string.';
+						}
 					}
 				}
 
