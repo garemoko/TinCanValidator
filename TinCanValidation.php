@@ -15,8 +15,6 @@
 |-----------------------------------------------------------------------------------
 */
 
-namespace app\locker\helpers;
-
 class TinCanValidation {
 
 	public $status = 'passed'; //status of the submitted statement. passed or failed.
