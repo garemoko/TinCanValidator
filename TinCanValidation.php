@@ -69,10 +69,10 @@ class TinCanValidation {
 	| Checks if an assertion is true
 	| Sets a status (default 'failed') and pushed an error on failure/false
 	|
-	| @param  boolean 	$assertion		The boolean we are testing
+	| @param  boolean	$assertion		The boolean we are testing
 	| @param  string 	$fail_error		The string to push into the errors array
 	| @param  string 	$fail_status	The string to set the status to
-	| @return boolean 								Whether we the assertion passed the test
+	| @return boolean 							Whether we the assertion passed the test
 	|----------------------------------------------------------------------------
 	*/
 	private function assertionCheck( $assertion, $fail_error='There was an error', $fail_status='failed' ){
