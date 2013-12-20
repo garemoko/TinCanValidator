@@ -64,7 +64,7 @@ class TinCanValidation {
 
 	/*
 	|----------------------------------------------------------------------------
-	| Assetion Checker
+	| Assertion Checker
 	|
 	| Checks if an assertion is true
 	| Sets a status (default 'failed') and pushed an error on failure/false
