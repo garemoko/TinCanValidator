@@ -26,8 +26,7 @@ class TinCanValidation {
 
 		$this->statement = $statement;
 		$this->user 	 = $user;
-		$this->runValidation();
-
+		
 	}
 
 	public function runValidation() {
@@ -145,12 +144,9 @@ class TinCanValidation {
 	public function validateActor(){
 
 		//first check actor is set as it is required
-			$actor_check = $this->assertionCheck(
-						( isset($this->statement['actor']) && !empty($this->statement['actor']) && is_array($this->statement['actor']) ),
-						'The statement does not have actor set, which is required.');
-
-		// $actor_check = $this->assertionCheck('actor', array('isset', '!empty', 'is_array'), 
-		// 		'The statement does not have actor set, which is required.');
+		$actor_check = $this->assertionCheck(
+					( isset($this->statement['actor']) && !empty($this->statement['actor']) && is_array($this->statement['actor']) ),
+					'The statement does not have actor set, which is required.');
 		
 		if( !$actor_check ) return false;
 
@@ -190,7 +186,7 @@ class TinCanValidation {
 			//if not a group, then it is an Agent, or not set so needs a valid
 			//functional identifier
 			if( $identifier_valid === false ){
-				$this->setError( 'failed', 'The functional identifier is not valid.' );
+				$this->setError( 'The functional identifier is not valid.' );
 				return false;
 			}
 
@@ -406,7 +402,7 @@ class TinCanValidation {
 					$object_type = $object['objectType'];
 
 					//check objectType is valid.
-					$object_type_valid = $this->checkKeys(array($object_type), $object_type_valid_keys);
+					$object_type_valid = $this->checkKeys( array($object_type), $object_type_valid_keys );
 
 					//if there is an invalid key, exit here
 					if( $object_type_valid === false ){
