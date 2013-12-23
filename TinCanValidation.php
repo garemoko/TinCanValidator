@@ -40,14 +40,14 @@ class TinCanValidation {
 	public function runValidation() {
 
 		if( !$this->getStarted() ){
-			//return false; //if this step fails, don't go any further.
+			return false; //if this step fails, don't go any further.
 		}
 
 		$this->validateId();
 		
 		$this->validateActor();
 
-		//$this->validateAuthority();
+		$this->validateAuthority();
 
 		$this->validateVerb();
 
