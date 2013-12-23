@@ -2,7 +2,7 @@
 /*
 |-----------------------------------------------------------------------------------
 |
-| Validate incoming TinCan (xAPI) statements. You can read more about the
+| Validate TinCan (xAPI) statements. You can read more about the
 | standard here http://www.adlnet.gov/wp-content/uploads/2013/05/20130521_xAPI_v1.0.0-FINAL-correx.pdf
 |
 | This class covers version 1.0.0 and was built as part of the HT2 Learning Locker project.
@@ -10,7 +10,7 @@
 |
 | @author Dave Tosh @davetosh
 | @copyright HT2 http://ht2.co.uk
-| @license MIT http://opensource.org/licenses/MIT 
+| @license MIT http://opensource.org/licenses/MIT
 |
 |-----------------------------------------------------------------------------------
 */
@@ -264,7 +264,7 @@ class TinCanValidation {
 		}
 
 		if( isset($actor['openID']) ){
-			//for now we just check it is a url / @todo check it is valid?
+			//for now we just check it is a url / @todo check it is really an openID?
 			if(!filter_var($actor['openID'], FILTER_VALIDATE_URL)){
 				$this->setError( 'The functional identifier - openID - is not in a valid format.' );	
 				return false;
@@ -587,7 +587,7 @@ class TinCanValidation {
 					}
 
 				}elseif( $object_type == 'SubStatement' ){
-					//@todo validate statement
+					//@todo validate sub-statement
 					
 					//remove "id", "stored", "version" or "authority" if exist
 					unset($object['id']);
@@ -966,7 +966,7 @@ class TinCanValidation {
 			return false;
 		} 
 
-		//@todo is the timestamp in the future? If so, make sure it is in a sub-statement
+		//@todo is the timestamp in the future? If so, make sure it is include in a sub-statement only
 
 		return true;
 
