@@ -10,7 +10,7 @@
 |
 | @author Dave Tosh @davetosh
 | @copyright HT2 http://ht2.co.uk
-| @license MIT http://opensource.org/licenses/MIT
+| @license MIT http://opensource.org/licenses/MIT 
 |
 |-----------------------------------------------------------------------------------
 */
