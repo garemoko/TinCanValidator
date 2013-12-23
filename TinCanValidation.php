@@ -10,7 +10,7 @@
 |
 | @author Dave Tosh @davetosh
 | @copyright HT2 http://ht2.co.uk
-| @license MIT
+| @license MIT http://opensource.org/licenses/MIT
 |
 |-----------------------------------------------------------------------------------
 */
@@ -70,17 +70,22 @@ class TinCanValidation {
 	| @param  boolean	$assertion		The boolean we are testing
 	| @param  string 	$fail_error		The string to push into the errors array
 	| @param  string 	$fail_status	The string to set the status to
-	| @return boolean 							Whether we the assertion passed the test
+	| @return boolean 					Whether we the assertion passed the test
 	|----------------------------------------------------------------------------
 	*/
-	private function assertionCheck( $assertion, $fail_error='There was an error', $fail_status='failed' ){
+	public function assertionCheck( $assertion, $fail_error='There was an error', $fail_status='failed' ){
+
 		if( !$assertion ){
-			$this->status = $fail_status;
-			$this->errors[] = $fail_error;
+			$this->setError( $fail_error, $fail_status );
 			return false;
 		}
 
 		return true;
+	}
+
+	private function setError( $fail_error='There was an error', $fail_status='failed' ){
+		$this->status 	= $fail_status;
+		$this->errors[] = $fail_error;
 	}
 
 	/*
@@ -91,7 +96,7 @@ class TinCanValidation {
 	| Id's should be provided by the Activity provider.
 	|----------------------------------------------------------------------------
 	*/
-	private function validateId(){
+	public function validateId(){
 		if( empty( $this->statement['id'] ) ){
 			$this->statement['id'] = $this->makeUUID();
 		}
@@ -137,63 +142,63 @@ class TinCanValidation {
 	| 
 	|----------------------------------------------------------------------------
 	*/
-	private function validateActor(){
+	public function validateActor(){
 
 		//first check actor is set as it is required
-		if( isset($this->statement['actor']) ){
+			$actor_check = $this->assertionCheck(
+						( isset($this->statement['actor']) && !empty($this->statement['actor']) && is_array($this->statement['actor']) ),
+						'The statement does not have actor set, which is required.');
 
-			$actor 		= $this->statement['actor'];
-			$actor_keys = array_keys($actor);
+		// $actor_check = $this->assertionCheck('actor', array('isset', '!empty', 'is_array'), 
+		// 		'The statement does not have actor set, which is required.');
+		
+		if( !$actor_check ) return false;
 
-			//check, if objectType is set, that it is either Group or Agent
-			if( isset($actor['objectType'] ) ){
-				if ( $actor['objectType'] != 'Agent' && $actor['objectType'] != 'Group'){
-					$this->status 	= 'failed';
-					$this->errors[] = 'The objectType is invalid. It must be Agent or Group.';
-					return false;
-				}
-			}
+		$actor 		= $this->statement['actor'];
+		$actor_keys = array_keys($actor);
 
-			//Check that one functional identifier exists and is permitted
-			$identifier_valid = $this->validIdentifier( $actor_keys );
+		//check, if objectType is set, that it is either Group or Agent
+		if( isset($actor['objectType'] ) ){
+			$member_check = $this->assertionCheck(
+					( $actor['objectType'] == 'Agent' || $actor['objectType'] == 'Group' ),
+					'The objectType is invalid. It must be a string Agent or Group.');
 
-			if( $actor['objectType'] == 'Group' ){
+			if( !$member_check ) return false;
+		}
 
-				//if objectType Group and no functional identifier: unidentified group
-				if( $identifier_valid === false ){
-					//Unidentified group so it must have an array containing at least one member
-					if( !isset($actor['member']) || !is_array($actor['member']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'As Actor objectType is Group, it must contain a members array.';
-						return false;
-					}
-				}else{
-					//identified group
-					//check that the identifier given is in the correct format
-					$validate_identifiers = $this->validateIdentifiers( $actor );
-					
-				}
+		//Check that one functional identifier exists and is permitted
+		$identifier_valid = $this->validIdentifier( $actor_keys );
 
+		if( $actor['objectType'] == 'Group' ){
+
+			//if objectType Group and no functional identifier: unidentified group
+			if( $identifier_valid === false ){
+				//Unidentified group so it must have an array containing at least one member
+				$member_check = $this->assertionCheck(
+						( isset($actor['member']) && is_array($actor['member']) ),
+						'As Actor objectType is Group, it must contain a members array.');
+
+				if( !$member_check ) return false;
 			}else{
-
-				//if not a group, then it is an Agent, or not set so needs a valid
-				//functional identifier
-				if( $identifier_valid === false ){
-					$this->status 	= 'failed';
-					$this->errors[] = 'The functional identifier is not valid.';
-					return false;
-				}
-
+				//identified group
 				//check that the identifier given is in the correct format
 				$validate_identifiers = $this->validateIdentifiers( $actor );
-
 			}
 
 		}else{
-			$this->status 	= 'failed';
-			$this->errors[] = 'The statement does not have actor set, which is required.';
-			return false;
+
+			//if not a group, then it is an Agent, or not set so needs a valid
+			//functional identifier
+			if( $identifier_valid === false ){
+				$this->setError( 'failed', 'The functional identifier is not valid.' );
+				return false;
+			}
+
+			//check that the identifier given is in the correct format
+			$validate_identifiers = $this->validateIdentifiers( $actor );
+
 		}
+
 	}
 
 	/**
@@ -203,7 +208,7 @@ class TinCanValidation {
 	 * @return boolean 
 	 *
 	 **/
-	private function validIdentifier( $actor_keys ){
+	public function validIdentifier( $actor_keys ){
 
 		$identifier_valid 		= false;
 		$count 					= 0;
@@ -220,7 +225,7 @@ class TinCanValidation {
 		//only allow one identifier
 		if( $count > 1 ){
 			$identifier_valid = false;
-			$this->errors[]   = 'A statement can only set one functional identifier.';
+			$this->setError( 'A statement can only set one functional identifier.' );	
 		}
 		
 		return $identifier_valid;
@@ -233,13 +238,12 @@ class TinCanValidation {
 	 * @return boolean 
 	 *
 	 **/
-	private function validateIdentifiers( $actor ){
+	public function validateIdentifiers( $actor ){
 		
 		if( isset($actor['mbox']) ){
 			$mbox_format = substr($actor['mbox'], 0, 7);
 			if( $mbox_format != 'mailto:'){
-				$this->status 	= 'failed';
-				$this->errors[] = 'The functional identifier - mbox - is not in a valid format.';
+				$this->setError( 'The functional identifier - mbox - is not in a valid format.' );	
 				return false;
 			}
 			return true;
@@ -248,8 +252,7 @@ class TinCanValidation {
 		if( isset($actor['openID']) ){
 			//for now we just check it is a url / @todo check it is valid?
 			if(!filter_var($actor['openID'], FILTER_VALIDATE_URL)){
-				$this->status 	= 'failed';
-				$this->errors[] = 'The functional identifier - openID - is not in a valid format.';
+				$this->setError( 'The functional identifier - openID - is not in a valid format.' );	
 				return false;
 			}
 			return true;
@@ -258,8 +261,7 @@ class TinCanValidation {
 		if( isset($actor['mbox_sha1sum']) ){
 			//for now just check it is a string
 			if( !is_string( $actor['mbox_sha1sum'] ) ){
-				$this->status 	= 'failed';
-				$this->errors[] = 'The functional identifier - mbox_sha1sum - is not in a valid format.';
+				$this->setError( 'The functional identifier - mbox_sha1sum - is not in a valid format.' );	
 				return false;
 			}
 			return true;
@@ -268,8 +270,7 @@ class TinCanValidation {
 		if( isset($actor['account']) ){
 			//for now just check it is actually an object
 			if( !is_object( $actor['account'] ) ){
-				$this->status 	= 'failed';
-				$this->errors[] = 'The functional identifier - account - is not in a valid format.';
+				$this->setError( 'The functional identifier - account - is not in a valid format.' );	
 				return false;
 			}
 			return true;
@@ -300,7 +301,7 @@ class TinCanValidation {
 	| 
 	|----------------------------------------------------------------------------
 	*/
-	private function validateAuthority(){
+	public function validateAuthority(){
 		//Overwrite / Add. This assume basic http authentication for now. See @todo.
 		$this->statement['authority'] = array(
             'name'         =>  $this->user->name,
@@ -321,21 +322,19 @@ class TinCanValidation {
 	| 
 	|----------------------------------------------------------------------------
 	*/
-	private function validateVerb(){
+	public function validateVerb(){
 
 		$verb  = $this->statement['verb'];
 		$count = count($verb);
 
 		//first check there are only two keys
 		if( $count != 2 ){
-			$this->status 	= 'failed';
-			$this->errors[] = 'A verb can only contain two keys: Id and display.';
+			$this->setError( 'failed', 'A verb can only contain two keys: Id and display.' );		
 			return false;
 		}else{
 			//now check the keys are id and display
 			if ( !array_key_exists('id', $verb) || !array_key_exists('display', $verb)){
-				$this->status 	= 'failed';
-				$this->errors[] = 'A verb can only contain two keys: Id and display.';
+				$this->setError( 'A verb can only contain two keys: Id and display.' );
 				return false;
 			}
 		}
@@ -387,7 +386,7 @@ class TinCanValidation {
 	| 
 	|----------------------------------------------------------------------------
 	*/
-	private function validateObject(){
+	public function validateObject(){
 
 		if( isset($this->statement['object']) ){
 
@@ -411,8 +410,7 @@ class TinCanValidation {
 
 					//if there is an invalid key, exit here
 					if( $object_type_valid === false ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'The objectType is not valid.';
+						$this->setError( 'The objectType is not valid.' );
 						return false;
 					}
 
@@ -434,15 +432,13 @@ class TinCanValidation {
 					$object_valid = $this->checkKeys($object_keys, $activity_valid_keys);
 
 					if( $object_valid === false ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'The object has an invalid property.';
+						$this->setError( 'The object has an invalid property.' );
 						return false;
 					}
 
 					//check if key exists as it is required.
 					if( !isset($object['id']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'The object\'s id has not been set and is required.';
+						$this->setError( 'The object\'s id has not been set and is required.' );
 						return false;
 					}
 
@@ -457,8 +453,7 @@ class TinCanValidation {
 					//check definition, if set, is an object
 					if( isset($object['definition']) ){
 						if( !is_array($object['definition']) ){
-							$this->status 	= 'failed';
-							$this->errors[] = 'Object: definition needs to be an object.';
+							$this->setError( 'Object: definition needs to be an object.' );
 						}
 					}else{
 
@@ -481,30 +476,26 @@ class TinCanValidation {
 						$definition_valid = $this->checkKeys($definition_keys, $definition_valid_keys);
 
 						if( $definition_valid === false ){
-							$this->status 	= 'failed';
-							$this->errors[] = 'The object\'s definition has an invalid property.';
+							$this->setError( 'The object\'s definition has an invalid property.' );
 							return false;
 						}
 
 						//now check definition keys are formated correctly
 						if( isset($definition['name']) ){
 							if( !is_array($definition['name']) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Object: definition: name needs to be a language map.';
+								$this->setError( 'Object: definition: name needs to be a language map.' );
 							}
 						}
 
 						if( isset($definition['description']) ){
 							if( !is_array($object['definition']['description']) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Object: definition: description needs to be a language map.';
+								$this->setError( 'Object: definition: description needs to be a language map.' );
 							}
 						}
 
 						if( isset($definition['type']) ){
 							if( !filter_var($object['definition']['type'], FILTER_VALIDATE_URL) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Object: definition: type needs to be a IRL.';
+								$this->setError( 'Object: definition: type needs to be a IRL.' );
 							}
 						}
 
@@ -524,16 +515,14 @@ class TinCanValidation {
 															   'numeric',
 															   'other');
 							if( !in_array($definition['interactionType'], $allowed_interaction_types) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Object: definition: interactionType is not valid.';
+								$this->setError( 'Object: definition: interactionType is not valid.' );
 							} 
 						}
 
 						if( isset($definition['correctResponsesPattern']) ){
 							//check to see it type is set, if not, set to http://adlnet.gov/expapi/activities/cmi.interaction
 							if( !is_array($definition['correctResponsesPattern']) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Object: definition: correctResponsesPattern needs to be an array.';
+								$this->setError( 'Object: definition: correctResponsesPattern needs to be an array.' );
 							}
 						}
 
@@ -549,15 +538,13 @@ class TinCanValidation {
 								$is_valid = $this->checkKeys($definition[$l], $check_valid_keys);
 
 								if( $definition_valid === false ){
-									$this->status 	= 'failed';
-									$this->errors[] = 'Object: definition: $l has an invalid property.';
+									$this->setError( 'Object: definition: It has an invalid property.' );
 									return false;
 								}
 
 								//these components all contain an id and description
 								if ( !array_key_exists('id', $definition[$l]) || !array_key_exists('description', $definition[$l])){
-									$this->status 	= 'failed';
-									$this->errors[] = 'Object: definition: $l needs to be an array with keys id and description.';
+									$this->setError( 'Object: definition: It needs to be an array with keys id and description.' );
 								}
 
 							}
@@ -566,8 +553,7 @@ class TinCanValidation {
 
 						if( isset($definition['extensions']) ){
 							if( !is_array($definition['extensions']) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Object: definition: extensions need to be an object.';
+								$this->setError( 'Object: definition: extensions need to be an object.' );
 							}
 						}
 					}
@@ -579,12 +565,10 @@ class TinCanValidation {
 					if( isset($id) ){
 						//check it is in a valid UUID format
 						if( !preg_match('/^\{?[A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{12}\}?$/i', $id) ){
-							$this->status 	= 'failed';
-							$this->errors[] = 'Object of type StatementRef needs an id with a valid UUID.';
+							$this->setError( 'Object of type StatementRef needs an id with a valid UUID.' );
 						}
 					}else{
-						$this->status 	= 'failed';
-						$this->errors[] = 'Object of type StatementRef needs to contain the UUID of a statement.';
+						$this->setError( 'Object of type StatementRef needs to contain the UUID of a statement.' );
 						return false;
 					}
 
@@ -599,8 +583,7 @@ class TinCanValidation {
 
 					//check object type is not SubStatement as nesting is not permitted
 					if( $object['objectType'] == 'SubStatement' ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'A SubStatement cannot contain a nested statement.';
+						$this->setError( 'A SubStatement cannot contain a nested statement.' );
 						return false;
 					}
 
@@ -610,13 +593,11 @@ class TinCanValidation {
 
 
 			}else{
-				$this->status 	= 'failed';
-				$this->errors[] = 'Object needs to be an object.';
+				$this->setError( 'Object needs to be an object.' );
 				return false;
 			}
 		}else{
-			$this->status 	= 'failed';
-			$this->errors[] = 'Object is required in a statement.';
+			$this->setError( 'Object is required in a statement.' );
 			return false;
 		}
 		
@@ -656,7 +637,7 @@ class TinCanValidation {
 	| 
 	|----------------------------------------------------------------------------
 	*/
-	private function validateContext(){
+	public function validateContext(){
 		
 		if( isset($this->statement['context']) ){
 
@@ -679,37 +660,32 @@ class TinCanValidation {
 
 				//if there is an invalid key, exit here
 				if( $context_valid === false ){
-					$this->status 	= 'failed';
-					$this->errors[] = 'There is an invalid property in context.';
+					$this->setError( 'There is an invalid property in context.' );
 					return false;
 				}
 
 				//now check all main properties
 				if( isset($context['registration']) ){
 					if( !preg_match('/^\{?[A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{12}\}?$/i', $context['registration']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Context: registration must be a UUID.';
+						$this->setError( 'Context: registration must be a UUID.' );
 					}
 				}
 
 				if( isset($context['instructor']) ){
 					if( !is_array($context['instructor']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Context: instructor must be an Agent object.';
+						$this->setError( 'Context: instructor must be an Agent object.' );
 					}
 				}
 
 				if( isset($context['team']) ){
 					if( !is_array($context['team']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Context: team must be an Group object.';
+						$this->setError( 'Context: team must be an Group object.' );
 					}
 				}
 
 				if( isset($context['contextActivities']) ){
 					if( !is_array($context['contextActivities']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Context: contextActivities must be an object.';
+						$this->setError( 'Context: contextActivities must be an object.' );
 					}else{
 						//check properties in contextActivies
 						$contextActivies_valid        = true;
@@ -728,37 +704,32 @@ class TinCanValidation {
 
 						//if there is an invalid key, exit here
 						if( $contextActivies_valid === false ){
-							$this->status 	= 'failed';
-							$this->errors[] = 'There is an invalid property in contextActivities.';
+							$this->setError( 'There is an invalid property in contextActivities.' );
 							return false;
 						}
 
 						//now check all property keys contain an array
 						if( isset($context['contextActivities']['parent']) ){
 							if( !is_array($context['contextActivities']['parent']) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Context: contextActivities: parent must be an object or array of objects.';
+								$this->setError( 'Context: contextActivities: parent must be an object or array of objects.' );
 							}
 						}
 
 						if( isset($context['contextActivities']['grouping']) ){
 							if( !is_array($context['contextActivities']['grouping']) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Context: contextActivities: grouping must be an object or array of objects.';
+								$this->setError( 'Context: contextActivities: grouping must be an object or array of objects.' );
 							}
 						}
 
 						if( isset($context['contextActivities']['category']) ){
 							if( !is_array($context['contextActivities']['category']) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Context: contextActivities: category must be an object or array of objects.';
+								$this->setError( 'Context: contextActivities: category must be an object or array of objects.' );
 							}
 						}
 
 						if( isset($context['contextActivities']['other']) ){
 							if( !is_array($context['contextActivities']['other']) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Context: contextActivities: other must be an object or array of objects.';
+								$this->setError( 'Context: contextActivities: other must be an object or array of objects.' );
 							}
 						}
 					}
@@ -769,8 +740,7 @@ class TinCanValidation {
 					$object_type = array('Agent', 'Group');
 					if( !in_array($this->statement['object']['objectType'], $object_type) ){
 						if( !is_string($context['revision']) ){
-							$this->status 	= 'failed';
-							$this->errors[] = 'Context: revision must be a string.';
+							$this->setError( 'Context: revision must be a string.' );
 						}
 					}
 				}
@@ -780,8 +750,7 @@ class TinCanValidation {
 					$object_type = array('Agent', 'Group');
 					if( !in_array($this->statement['object']['objectType'], $object_type) ){
 						if( !is_string($context['platform']) ){
-							$this->status 	= 'failed';
-							$this->errors[] = 'Context: platform must be a string.';
+							$this->setError( 'Context: platform must be a string.' );
 						}
 					}
 				}
@@ -789,28 +758,24 @@ class TinCanValidation {
 				if( isset($context['language']) ){
 					//@todo need to check language is valid rfc 5646 code, if not, reject it.
 					if( !is_string($context['language']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Context: language must be a string.';
+						$this->setError( 'Context: language must be a string.' );
 					}
 				}
 
 				if( isset($context['statement']) ){
 					if( !preg_match('/^\{?[A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{12}\}?$/i', $context['statement']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Context: statement must be a UUID of the connected statement.';
+						$this->setError( 'Context: statement must be a UUID of the connected statement.' );
 					}
 				}
 
 				if( isset($context['extensions']) ){
 					if( !is_array($context['extensions']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Result: extensions must be an object.';
+						$this->setError( 'Result: extensions must be an object.' );
 					}
 				}
 
 			}else{
-				$this->status 	= 'failed';
-				$this->errors[] = 'Context must be an object.';
+				$this->setError( 'Context must be an object.' );
 				return false;
 			}
 		}
@@ -843,7 +808,7 @@ class TinCanValidation {
 	| 
 	|----------------------------------------------------------------------------
 	*/
-	private function validateResult(){
+	public function validateResult(){
 
 		if( isset($this->statement['result']) ){
 
@@ -863,16 +828,14 @@ class TinCanValidation {
 
 				//if there is an invalid key, exit here
 				if( $result_valid === false ){
-					$this->status 	= 'failed';
-					$this->errors[] = 'There is an invalid key in result.';
+					$this->setError( 'There is an invalid key in result.' );
 					return false;
 				}
 
 				//now check format of each key section
 				if( isset($result['score']) ){
 					if( !is_array($result['score']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Result: score must be an object.';
+						$this->setError( 'Result: score must be an object.' );
 					}else{
 						//check contents of score
 						$score_valid 	  = true;
@@ -887,46 +850,38 @@ class TinCanValidation {
 						}
 
 						if( $score_valid === false ){
-							$this->status 	= 'failed';
-							$this->errors[] = 'There is an invalid key in the score object.';
+							$this->setError( 'There is an invalid key in the score object.' );
 							return false;
 						}
 
 						//now check format of each score key
 						if( isset($result['score']['scaled']) ){
 							if( $result['score']['scaled'] > 1 || $result['score']['scaled'] < -1){
-								$this->status = 'failed';
-								$this->errors[] = 'Result: score: scaled must be between 1 and -1.';
+								$this->setError( 'Result: score: scaled must be between 1 and -1.' );
 							}
 						}
 						if( isset($result['score']['max']) ){
 							if( !is_numeric($result['score']['max']) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Result: score: max must be a numeric value.';
+								$this->setError( 'Result: score: max must be a numeric value.' );
 							}
 							if( $result['score']['max'] < $result['score']['min'] ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Result: score: max must be greater than min.';
+								$this->setError( 'Result: score: max must be greater than min.' );
 							}
 						}
 						if( isset($result['score']['min']) ){
 							if( !is_numeric($result['score']['min']) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Result: score: min must be a numeric value.';
+								$this->setError( 'Result: score: min must be a numeric value.' );
 							}
 							if( $result['score']['min'] > $result['score']['max'] ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Result: score: min must be less than max.';
+								$this->setError( 'Result: score: min must be less than max.' );
 							}
 						}
 						if( isset($result['score']['raw']) ){
 							if( !is_numeric($result['score']['raw']) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Result: score: raw must be a numeric value.';
+								$this->setError( 'Result: score: raw must be a numeric value.' );
 							}
 							if( ($result['score']['raw'] > $result['score']['max']) || ($result['score']['raw'] < $result['score']['min']) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Result: score: raw must be between max and min.';
+								$this->setError( 'Result: score: raw must be between max and min.' );
 							}
 						}
 					}
@@ -934,42 +889,36 @@ class TinCanValidation {
 
 				if( isset($result['completion']) ){
 					if( !is_bool($result['completion']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Result: completion must be a boolean.';
+						$this->setError( 'Result: completion must be a boolean.' );
 					}
 				}
 
 				if( isset($result['success']) ){
 					if( !is_bool($result['success']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Result: success must be a boolean.';
+						$this->setError( 'Result: success must be a boolean.' );
 					}
 				}
 
 				if( isset($result['duration']) ){
 					if( !is_numeric($result['duration']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Result: duration must be an integer.';
+						$this->setError( 'Result: duration must be an integer.' );
 					}
 				}
 
 				if( isset($result['response']) ){
 					if( !is_string($result['response']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Result: response must be a string.';
+						$this->setError( 'Result: response must be a string.' );
 					}
 				}
 
 				if( isset($result['extensions']) ){
 					if( !is_array($result['extensions']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Result: extensions must be an object.';
+						$this->setError( 'Result: extensions must be an object.' );
 					}
 				}
 
 			}else{
-				$this->status 	= 'failed';
-				$this->errors[] = 'Result must be an object.';
+				$this->setError( 'Result must be an object.' );
 				return false;
 			}
 		}
@@ -988,7 +937,7 @@ class TinCanValidation {
 	| 
 	|----------------------------------------------------------------------------
 	*/
-	private function validateTimestamp(){
+	public function validateTimestamp(){
 		
 		//does timestamp exist?
 		if( isset($this->statement['timestamp']) ){
@@ -999,8 +948,7 @@ class TinCanValidation {
 
 		//check format using http://www.pelagodesign.com/blog/2009/05/20/iso-8601-date-validation-that-doesnt-suck/
 		if (!preg_match('/^([\+-]?\d{4}(?!\d{2}\b))((-?)((0[1-9]|1[0-2])(\3([12]\d|0[1-9]|3[01]))?|W([0-4]\d|5[0-2])(-?[1-7])?|(00[1-9]|0[1-9]\d|[12]\d{2}|3([0-5]\d|6[1-6])))([T\s]((([01]\d|2[0-3])((:?)[0-5]\d)?|24\:?00)([\.,]\d+(?!:))?)?(\17[0-5]\d([\.,]\d+)?)?([zZ]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?)?)?$/', $timestamp) > 0) {
-			$this->status 	= 'failed';
-			$this->errors[] = 'Timestamp needs to be in ISO 8601 format.';
+			$this->setError( 'Timestamp needs to be in ISO 8601 format.' );
 			return false;
 		} 
 
@@ -1018,7 +966,7 @@ class TinCanValidation {
 	| 
 	|----------------------------------------------------------------------------
 	*/
-	private function validateStored(){
+	public function validateStored(){
 	
 		if( isset( $this->statement['stored'] ) ){
 			unset( $this->statement['stored'] );
@@ -1036,13 +984,12 @@ class TinCanValidation {
 	| 
 	|----------------------------------------------------------------------------
 	*/
-	private function validateVersion(){
+	public function validateVersion(){
 	
 		if( isset( $this->statement['version'] ) ){
 			$result = $result = substr($this->statement['version'], 0, 4);
 			if( $result != '1.0.' ){
-				$this->status 	= 'failed';
-				$this->errors[] = 'The statement has an invalid version.';
+				$this->setError( 'The statement has an invalid version.' );
 				return false;
 			}
 		}else{
@@ -1077,7 +1024,7 @@ class TinCanValidation {
 	| 
 	|----------------------------------------------------------------------------
 	*/
-	private function validateAttachments(){
+	public function validateAttachments(){
 	
 		if( isset($this->statement['attachment']) ){
 
@@ -1099,8 +1046,7 @@ class TinCanValidation {
 
 				//if there is an invalid key, exit here
 				if( $attachment_valid === false ){
-					$this->status 	= 'failed';
-					$this->errors[] = 'There is an invalid property in the attachment.';
+					$this->setError( 'There is an invalid property in the attachment.' );
 					return false;
 				}
 
@@ -1113,48 +1059,41 @@ class TinCanValidation {
 							case 'usageType':
 							//@todo need to properly validate a IRI
 							if( !is_string($value) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Attachment: usageType is not a valid IRI.';
+								$this->setError( 'Attachment: usageType is not a valid IRI.' );
 							}
 							break;
 							case 'display':
 							//@todo need to properly detect valid language map
 							if( !is_array($value) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Attachment: display is not a valid language map.';
+								$this->setError( 'Attachment: display is not a valid language map.' );
 							}
 							break;
 							case 'contentType':
 							//@todo need to properly detect valid Internet Media Type
 							//if( !is_array($attachment['contentType']) ){
-							//	$this->status 	= 'failed';
-							//	$this->errors[] = 'Attachment: contentType is not a valid Internet Media Type.';
+							// $this->setError( 'Attachment: contentType is not a valid Internet Media Type.' );
 							//}
 							break;
 							case 'length':
 							if( !is_integer($value) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Attachment: length is not a valid integer.';
+								$this->setError( 'Attachment: length is not a valid integer.' );
 							}
 							break;
 							case 'sha2':
 							if( base64_encode(base64_decode($value)) !== $value ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Attachment: sha2 is not valid base64 encoded.';
+								$this->setError( 'Attachment: sha2 is not valid base64 encoded.' );
 							}
 							break;
 							case 'fileUrl':
 							//@todo need to properly validate a IRL
 							if( !filter_var($value, FILTER_VALIDATE_URL) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Attachment: fileUrl is not a valid IRL.';
+								$this->setError( 'Attachment: usageType is not a valid IRI.' );
 							}
 							break;
 							case 'description':
 							//@todo need to properly detect valid language map
 							if( !is_array($value) ){
-								$this->status 	= 'failed';
-								$this->errors[] = 'Attachment: description is not a valid language map.';
+								$this->setError( 'Attachment: description is not a valid language map.' );
 							}
 							break;
 						}
@@ -1164,15 +1103,13 @@ class TinCanValidation {
 
 					//check the fileUrl is not available, if not, reject statement
 					if( !isset($attachment['fileUrl']) ){
-						$this->status 	= 'failed';
-						$this->errors[] = 'Attachment needs to have usageType, display, contentType, length and sha2 define. Or, fileUrl.';
+						$this->setError( 'Attachment needs to have usageType, display, contentType, length and sha2 define. Or, fileUrl.' );
 						return false;
 					}else{
 						//validate fileUrl
 						//@todo need to properly validate a IRL
 						if( !filter_var($attachment['fileUrl'], FILTER_VALIDATE_URL) ){
-							$this->status 	= 'failed';
-							$this->errors[] = 'Attachment: fileUrl is not a valid IRL.';
+							$this->setError( 'Attachment: fileUrl is not a valid IRL.' );
 						}
 					}
 				}
@@ -1208,7 +1145,7 @@ class TinCanValidation {
 	| 
 	|----------------------------------------------------------------------------
 	*/
-	private function getStarted(){
+	public function getStarted(){
 	
 		//check statement only contains allowed properties
 		$statement_keys  	  = array_keys($this->statement);
@@ -1229,8 +1166,7 @@ class TinCanValidation {
 	
 		//if there is an invalid key, exit here
 		if( $statement_valid === false ){
-			$this->status 	= 'failed';
-			$this->errors[] = 'There is an invalid core property in this statement.';
+			$this->setError( 'There is an invalid core property in this statement.' );
 			return false;
 		}
 
@@ -1246,7 +1182,7 @@ class TinCanValidation {
 	 * @return boolean 
 	 *
 	 **/
-	private function checkKeys($keys, $valid_keys){
+	public function checkKeys($keys, $valid_keys){
 		$valid = true;
 		foreach( $keys as $k ){
 			if( !in_array($k, $valid_keys) ){
@@ -1261,7 +1197,7 @@ class TinCanValidation {
 	| Generate unique UUID
 	|----------------------------------------------------------------------------
 	*/
-	private function makeUUID(){
+	public function makeUUID(){
 		return sprintf( '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
 	        // 32 bits for "time_low"
 	        mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff ),
