@@ -22,6 +22,14 @@ class TinCanValidation {
 	public $statement; //the statement submitted
 	public $user; //the user acount submitting the statement
 
+	/*
+	|----------------------------------------------------------------------------
+	| Contructor
+	|
+	| @param  array 	$statement		The statement.
+	| @param  array 	$user	        The user storing statement. Contains mbox and name for authority.
+	|----------------------------------------------------------------------------
+	*/
 	public function __construct( $statement, $user ){
 
 		$this->statement = $statement;
@@ -32,14 +40,14 @@ class TinCanValidation {
 	public function runValidation() {
 
 		if( !$this->getStarted() ){
-			return false; //if this step fails, don't go any further.
+			//return false; //if this step fails, don't go any further.
 		}
 
 		$this->validateId();
 		
 		$this->validateActor();
 
-		$this->validateAuthority();
+		//$this->validateAuthority();
 
 		$this->validateVerb();
 
@@ -82,6 +90,16 @@ class TinCanValidation {
 		return true;
 	}
 
+	/*
+	|----------------------------------------------------------------------------
+	| Set errors and status
+	|
+	| Used to set the statement status and any errors.
+	|
+	| @param  string 	$fail_error		The string to push into the errors array
+	| @param  string 	$fail_status	The string to set the status to
+	|----------------------------------------------------------------------------
+	*/
 	private function setError( $fail_error='There was an error', $fail_status='failed' ){
 		$this->status 	= $fail_status;
 		$this->errors[] = $fail_error;
@@ -300,8 +318,8 @@ class TinCanValidation {
 	public function validateAuthority(){
 		//Overwrite / Add. This assume basic http authentication for now. See @todo.
 		$this->statement['authority'] = array(
-            'name'         =>  $this->user->name,
-            'mbox'         =>  'mailto:' . $this->user->email,
+            'name'         =>  $this->user['name'],
+            'mbox'         =>  'mailto:' . $this->user['email'],
             'objectType'   =>  'Agent'
         );
 	}
@@ -1142,9 +1160,16 @@ class TinCanValidation {
 	|----------------------------------------------------------------------------
 	*/
 	public function getStarted(){
+
+		//check statement is an array and not empty
+		$statement_check = $this->assertionCheck(
+					( isset($this->statement) && !empty($this->statement) && is_array($this->statement) ),
+					'The statement doesn\'t exist or is not in the correct format.');
+		
+		if( !$statement_check ) return false;
 	
 		//check statement only contains allowed properties
-		$statement_keys  	  = array_keys($this->statement);
+		$statement_keys  	  = array_keys( $this->statement );
 		$valid_statement_keys = array('id', 
 							  		  'actor', 
 							  		  'verb', 
