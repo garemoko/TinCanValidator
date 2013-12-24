@@ -24,7 +24,7 @@ class TinCanValidation {
 
 	/*
 	|----------------------------------------------------------------------------
-	| Contructor
+	| Constructor
 	|
 	| @param  array 	$statement		The statement.
 	| @param  array 	$user	        The user storing statement. Contains mbox and name for authority.
