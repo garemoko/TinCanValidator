@@ -130,10 +130,10 @@ class TinCanValidation {
 	| ObjectType and Name are not required. Functional identifier is required.
 	|
 	| Functional identiers can be one of four things:
-	| 1) mbox - mailto IRI - mailto:email_address
-	| 2) mbox_sha1sum - string - sha1 hash of mailto IRI
-	| 3) OpenID - url
-	| 4) account - object - homePage and name (URL and String). The name can be account number or text 
+	| 1) mbox 		  (mailto IRI)  mailto:email_address
+	| 2) mbox_sha1sum (string) 		sha1 hash of mailto IRI
+	| 3) OpenID 	  (url)
+	| 4) account 	  (object) 		homePage and name (URL and String). The name can be account number or text 
 	|
 	| Requirements
 	|
@@ -402,219 +402,210 @@ class TinCanValidation {
 	*/
 	public function validateObject(){
 
-		if( isset($this->statement['object']) ){
+		$object_check = $this->assertionCheck(
+					( isset($this->statement['object']) && is_array($this->statement['object']) ),
+					'The statement object is not correctly formatted.');
+		
+		if( !$object_check ) return false;
 
-			if( is_array($this->statement['object']) ){
+		$object = $this->statement['object'];
 
-				$object = $this->statement['object'];
+		$object_type_valid_keys = array('Activity', 
+							    		'Group', 
+									    'Agent', 
+									    'SubStatement', 
+									    'StatementRef');
 
-				$object_type_valid_keys = array('Activity', 
-									    		'Group', 
-											    'Agent', 
-											    'SubStatement', 
-											    'StatementRef');
+		//find out what type of object it is as that will inform next steps
+		if( isset($object['objectType']) ){
 
-				//find out what type of object it is as that will inform next steps
-				if( isset($object['objectType']) ){
+			$object_type = $object['objectType'];
 
-					$object_type = $object['objectType'];
+			//check objectType is valid.
+			$object_type_valid = $this->checkKeys( array($object_type), $object_type_valid_keys );
 
-					//check objectType is valid.
-					$object_type_valid = $this->checkKeys( array($object_type), $object_type_valid_keys );
+			//if there is an invalid key, exit here
+			if( $object_type_valid === false ){
+				$this->setError( 'The objectType is not valid.' );
+				return false;
+			}
 
-					//if there is an invalid key, exit here
-					if( $object_type_valid === false ){
-						$this->setError( 'The objectType is not valid.' );
-						return false;
-					}
+		}else{
+			$object_type = 'Activity'; //this is the default if nothing defined.
+		}
 
-				}else{
-					$object_type = 'Activity'; //this is the default if nothing defined.
+		//depending on the objectType, validate accordingly.
+		$object_keys 	 = array_keys( $object );
+
+		if( $object_type == 'Activity' || $object_type == 'Agent' || $object_type == 'Group' ){
+
+			$activity_valid_keys = array('objectType', 
+								   	     'id', 
+								    	 'definition');
+
+			//check activity object only has valid keys.
+			$object_valid = $this->checkKeys($object_keys, $activity_valid_keys);
+
+			if( $object_valid === false ){
+				$this->setError( 'The object has an invalid property.' );
+				return false;
+			}
+
+			//check if key exists as it is required.
+			if( !isset($object['id']) ){
+				$this->setError( 'The object\'s id has not been set and is required.' );
+				return false;
+			}
+
+			//now check object keys are the correct format
+
+			//check id is an IRI
+			//if( !is_array($object['id']) ){
+			//	$this->status 	= 'failed';
+			//	$this->errors[] = 'Object: id need to be an IRI.';
+			//}
+
+			//check definition, if set, is an object
+			if( isset($object['definition']) ){
+				if( !is_array($object['definition']) ){
+					$this->setError( 'Object: definition needs to be an object.' );
+				}
+			}else{
+
+				$definition = $object['definition'];
+				$definition_keys = array_keys( $definition );
+
+				$definition_valid_keys = array('name', 
+					                     	   'description', 
+					                     	   'type', 
+					                     	   'moreInfo', 
+					                     	   'extensions', 
+					                     	   'interactionType',
+					                     	   'correctResponsesPattern',
+					                     	   'choices',
+					                     	   'scale',
+					                     	   'source',
+					                     	   'target',
+					                     	   'steps');
+
+				//check activity object definition only has valid keys.
+				$definition_valid = $this->checkKeys($definition_keys, $definition_valid_keys);
+
+				if( $definition_valid === false ){
+					$this->setError( 'The object\'s definition has an invalid property.' );
+					return false;
 				}
 
-				//depending on the objectType, validate accordingly.
-				$object_keys 	 = array_keys( $object );
-				$definition_keys = array_keys( $object['definition'] );
-
-				if( $object_type == 'Activity' || $object_type == 'Agent' || $object_type == 'Group' ){
-
-					$activity_valid_keys = array('objectType', 
-										   	     'id', 
-										    	 'definition');
-
-					//check activity object only has valid keys.
-					$object_valid = $this->checkKeys($object_keys, $activity_valid_keys);
-
-					if( $object_valid === false ){
-						$this->setError( 'The object has an invalid property.' );
-						return false;
+				//now check definition keys are formated correctly
+				if( isset($definition['name']) ){
+					if( !is_array($definition['name']) ){
+						$this->setError( 'Object: definition: name needs to be a language map.' );
 					}
+				}
 
-					//check if key exists as it is required.
-					if( !isset($object['id']) ){
-						$this->setError( 'The object\'s id has not been set and is required.' );
-						return false;
+				if( isset($definition['description']) ){
+					if( !is_array($object['definition']['description']) ){
+						$this->setError( 'Object: definition: description needs to be a language map.' );
 					}
+				}
 
-					//now check object keys are the correct format
+				if( isset($definition['type']) ){
+					if( !filter_var($object['definition']['type'], FILTER_VALIDATE_URL) ){
+						$this->setError( 'Object: definition: type needs to be a IRL.' );
+					}
+				}
 
-					//check id is an IRI
-					//if( !is_array($object['id']) ){
-					//	$this->status 	= 'failed';
-					//	$this->errors[] = 'Object: id need to be an IRI.';
-					//}
+				if( isset($definition['moreInfo']) ){
+					//@todo - not sure what an IL is
+				}
 
-					//check definition, if set, is an object
-					if( isset($object['definition']) ){
-						if( !is_array($object['definition']) ){
-							$this->setError( 'Object: definition needs to be an object.' );
-						}
-					}else{
+				if( isset($definition['interactionType']) ){
+					//check to see it type is set, if not, set to http://adlnet.gov/expapi/activities/cmi.interaction
+					$allowed_interaction_types = array('choice',
+													   'sequencing',
+													   'Likert',
+													   'Matching',
+													   'Performance',
+													   'true-false',
+													   'fill-in',
+													   'numeric',
+													   'other');
 
-						$definition = $object['definition'];
+					if( !in_array($definition['interactionType'], $allowed_interaction_types) ){
+						$this->setError( 'Object: definition: interactionType is not valid.' );
+					} 
+				}
 
-						$definition_valid_keys = array('name', 
-							                     	   'description', 
-							                     	   'type', 
-							                     	   'moreInfo', 
-							                     	   'extensions', 
-							                     	   'interactionType',
-							                     	   'correctResponsesPattern',
-							                     	   'choices',
-							                     	   'scale',
-							                     	   'source',
-							                     	   'target',
-							                     	   'steps');
+				if( isset($definition['correctResponsesPattern']) ){
+					//check to see it type is set, if not, set to http://adlnet.gov/expapi/activities/cmi.interaction
+					if( !is_array($definition['correctResponsesPattern']) ){
+						$this->setError( 'Object: definition: correctResponsesPattern needs to be an array.' );
+					}
+				}
+
+				if( isset($definition['choices'], $definition['scale'], $definition['source'], $definition['target'],$definition['steps']) ){
+
+					$check_valid_keys = array('id', 'description');
+
+					$loop = array('choices','scale','source','target','steps');
+
+					foreach( $loop as $l ){
 
 						//check activity object definition only has valid keys.
-						$definition_valid = $this->checkKeys($definition_keys, $definition_valid_keys);
+						$is_valid = $this->checkKeys($definition[$l], $check_valid_keys);
 
 						if( $definition_valid === false ){
-							$this->setError( 'The object\'s definition has an invalid property.' );
+							$this->setError( 'Object: definition: It has an invalid property.' );
 							return false;
 						}
 
-						//now check definition keys are formated correctly
-						if( isset($definition['name']) ){
-							if( !is_array($definition['name']) ){
-								$this->setError( 'Object: definition: name needs to be a language map.' );
-							}
+						//these components all contain an id and description
+						if ( !array_key_exists('id', $definition[$l]) || !array_key_exists('description', $definition[$l])){
+							$this->setError( 'Object: definition: It needs to be an array with keys id and description.' );
 						}
 
-						if( isset($definition['description']) ){
-							if( !is_array($object['definition']['description']) ){
-								$this->setError( 'Object: definition: description needs to be a language map.' );
-							}
-						}
-
-						if( isset($definition['type']) ){
-							if( !filter_var($object['definition']['type'], FILTER_VALIDATE_URL) ){
-								$this->setError( 'Object: definition: type needs to be a IRL.' );
-							}
-						}
-
-						if( isset($definition['moreInfo']) ){
-							//@todo - not sure what an IL is
-						}
-
-						if( isset($definition['interactionType']) ){
-							//check to see it type is set, if not, set to http://adlnet.gov/expapi/activities/cmi.interaction
-							$allowed_interaction_types = array('choice',
-															   'sequencing',
-															   'Likert',
-															   'Matching',
-															   'Performance',
-															   'true-false',
-															   'fill-in',
-															   'numeric',
-															   'other');
-							if( !in_array($definition['interactionType'], $allowed_interaction_types) ){
-								$this->setError( 'Object: definition: interactionType is not valid.' );
-							} 
-						}
-
-						if( isset($definition['correctResponsesPattern']) ){
-							//check to see it type is set, if not, set to http://adlnet.gov/expapi/activities/cmi.interaction
-							if( !is_array($definition['correctResponsesPattern']) ){
-								$this->setError( 'Object: definition: correctResponsesPattern needs to be an array.' );
-							}
-						}
-
-						if( isset($definition['choices'], $definition['scale'], $definition['source'], $definition['target'],$definition['steps']) ){
-
-							$check_valid_keys = array('id', 'description');
-
-							$loop = array('choices','scale','source','target','steps');
-
-							foreach( $loop as $l ){
-
-								//check activity object definition only has valid keys.
-								$is_valid = $this->checkKeys($definition[$l], $check_valid_keys);
-
-								if( $definition_valid === false ){
-									$this->setError( 'Object: definition: It has an invalid property.' );
-									return false;
-								}
-
-								//these components all contain an id and description
-								if ( !array_key_exists('id', $definition[$l]) || !array_key_exists('description', $definition[$l])){
-									$this->setError( 'Object: definition: It needs to be an array with keys id and description.' );
-								}
-
-							}
-
-						}
-
-						if( isset($definition['extensions']) ){
-							if( !is_array($definition['extensions']) ){
-								$this->setError( 'Object: definition: extensions need to be an object.' );
-							}
-						}
 					}
-					
-
-				}elseif( $object_type == 'StatementRef' ){
-					//Will only have objectType and id where id is a statement UUID.
-					$id = $object['id'];
-					if( isset($id) ){
-						//check it is in a valid UUID format
-						if( !preg_match('/^\{?[A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{12}\}?$/i', $id) ){
-							$this->setError( 'Object of type StatementRef needs an id with a valid UUID.' );
-						}
-					}else{
-						$this->setError( 'Object of type StatementRef needs to contain the UUID of a statement.' );
-						return false;
-					}
-
-				}elseif( $object_type == 'SubStatement' ){
-					//@todo validate sub-statement
-					
-					//remove "id", "stored", "version" or "authority" if exist
-					unset($object['id']);
-					unset($object['stored']);
-					unset($object['version']);
-					unset($object['authority']);
-
-					//check object type is not SubStatement as nesting is not permitted
-					if( $object['objectType'] == 'SubStatement' ){
-						$this->setError( 'A SubStatement cannot contain a nested statement.' );
-						return false;
-					}
-
-				}else{
-					//finished.
 				}
 
-
+				if( isset($definition['extensions']) ){
+					if( !is_array($definition['extensions']) ){
+						$this->setError( 'Object: definition: extensions need to be an object.' );
+					}
+				}
+			}
+					
+		}elseif( $object_type == 'StatementRef' ){
+			//Will only have objectType and id where id is a statement UUID.
+			$id = $object['id'];
+			if( isset($id) ){
+				//check it is in a valid UUID format
+				if( !preg_match('/^\{?[A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{12}\}?$/i', $id) ){
+					$this->setError( 'Object of type StatementRef needs an id with a valid UUID.' );
+				}
 			}else{
-				$this->setError( 'Object needs to be an object.' );
+				$this->setError( 'Object of type StatementRef needs to contain the UUID of a statement.' );
 				return false;
 			}
+
+		}elseif( $object_type == 'SubStatement' ){
+			//@todo validate sub-statement
+				
+			//remove "id", "stored", "version" or "authority" if exist
+			unset($object['id']);
+			unset($object['stored']);
+			unset($object['version']);
+			unset($object['authority']);
+
+			//check object type is not SubStatement as nesting is not permitted
+			if( $object['objectType'] == 'SubStatement' ){
+				$this->setError( 'A SubStatement cannot contain a nested statement.' );
+				return false;
+			}
+
 		}else{
-			$this->setError( 'Object is required in a statement.' );
-			return false;
+			//finished.
 		}
-		
+
 	}
 
 	/*
@@ -655,143 +646,144 @@ class TinCanValidation {
 		
 		if( isset($this->statement['context']) ){
 
-			if( is_array($this->statement['context']) ){
+			$context_check = $this->assertionCheck(
+					( is_array($this->statement['context']) && !empty($this->statement['context']) ),
+					'Context must be an array and can\'t be empty.');
+		
+			if( !$context_check ) return false;
 
-				$context 	   		= $this->statement['context'];
-				$context_keys  	    = array_keys($context);
-				$valid_context_keys = array('registration', 
-									  		'instructor', 
-									  		'team', 
-									  		'contextActivities', 
-									  		'revision', 
-									  		'platform',
-									  		'language',
-									  		'statement',
-									  		'extensions');
+			
+			$context 	   		= $this->statement['context'];
+			$context_keys  	    = array_keys($context);
+			$valid_context_keys = array('registration', 
+								  		'instructor', 
+								  		'team', 
+								  		'contextActivities', 
+								  		'revision', 
+								  		'platform',
+								  		'language',
+								  		'statement',
+								  		'extensions');
 
-				//check all keys submitted are valid
-				$context_valid = $this->checkKeys($context_keys, $valid_context_keys);
+			//check all keys submitted are valid
+			$context_valid = $this->checkKeys($context_keys, $valid_context_keys);
 
-				//if there is an invalid key, exit here
-				if( $context_valid === false ){
-					$this->setError( 'There is an invalid property in context.' );
-					return false;
-				}
-
-				//now check all main properties
-				if( isset($context['registration']) ){
-					if( !preg_match('/^\{?[A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{12}\}?$/i', $context['registration']) ){
-						$this->setError( 'Context: registration must be a UUID.' );
-					}
-				}
-
-				if( isset($context['instructor']) ){
-					if( !is_array($context['instructor']) ){
-						$this->setError( 'Context: instructor must be an Agent object.' );
-					}
-				}
-
-				if( isset($context['team']) ){
-					if( !is_array($context['team']) ){
-						$this->setError( 'Context: team must be an Group object.' );
-					}
-				}
-
-				if( isset($context['contextActivities']) ){
-					if( !is_array($context['contextActivities']) ){
-						$this->setError( 'Context: contextActivities must be an object.' );
-					}else{
-						//check properties in contextActivies
-						$contextActivies_valid        = true;
-						$contextActivities_keys  	  = array_keys($context['contextActivities']);
-						$valid_contextActivities_keys = array('parent', 
-															  'grouping', 
-															  'category', 
-															  'other');
-
-						//check all keys submitted are valid
-						foreach( $contextActivities_keys as $k ){
-							if( !in_array($k, $valid_contextActivities_keys) ){
-								$contextActivies_valid = false;
-							}
-						}
-
-						//if there is an invalid key, exit here
-						if( $contextActivies_valid === false ){
-							$this->setError( 'There is an invalid property in contextActivities.' );
-							return false;
-						}
-
-						//now check all property keys contain an array
-						if( isset($context['contextActivities']['parent']) ){
-							if( !is_array($context['contextActivities']['parent']) ){
-								$this->setError( 'Context: contextActivities: parent must be an object or array of objects.' );
-							}
-						}
-
-						if( isset($context['contextActivities']['grouping']) ){
-							if( !is_array($context['contextActivities']['grouping']) ){
-								$this->setError( 'Context: contextActivities: grouping must be an object or array of objects.' );
-							}
-						}
-
-						if( isset($context['contextActivities']['category']) ){
-							if( !is_array($context['contextActivities']['category']) ){
-								$this->setError( 'Context: contextActivities: category must be an object or array of objects.' );
-							}
-						}
-
-						if( isset($context['contextActivities']['other']) ){
-							if( !is_array($context['contextActivities']['other']) ){
-								$this->setError( 'Context: contextActivities: other must be an object or array of objects.' );
-							}
-						}
-					}
-				}
-
-				if( isset($context['revision']) ){
-					//If Statement's Object is an Agent or Group, don't save
-					$object_type = array('Agent', 'Group');
-					if( !in_array($this->statement['object']['objectType'], $object_type) ){
-						if( !is_string($context['revision']) ){
-							$this->setError( 'Context: revision must be a string.' );
-						}
-					}
-				}
-
-				if( isset($context['platform']) ){
-					//If Statement's Object is an Agent or Group, don't save
-					$object_type = array('Agent', 'Group');
-					if( !in_array($this->statement['object']['objectType'], $object_type) ){
-						if( !is_string($context['platform']) ){
-							$this->setError( 'Context: platform must be a string.' );
-						}
-					}
-				}
-
-				if( isset($context['language']) ){
-					//@todo need to check language is valid rfc 5646 code, if not, reject it.
-					if( !is_string($context['language']) ){
-						$this->setError( 'Context: language must be a string.' );
-					}
-				}
-
-				if( isset($context['statement']) ){
-					if( !preg_match('/^\{?[A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{12}\}?$/i', $context['statement']) ){
-						$this->setError( 'Context: statement must be a UUID of the connected statement.' );
-					}
-				}
-
-				if( isset($context['extensions']) ){
-					if( !is_array($context['extensions']) ){
-						$this->setError( 'Result: extensions must be an object.' );
-					}
-				}
-
-			}else{
-				$this->setError( 'Context must be an object.' );
+			//if there is an invalid key, exit here
+			if( $context_valid === false ){
+				$this->setError( 'There is an invalid property in context.' );
 				return false;
 			}
+
+			//now check all main properties
+			if( isset($context['registration']) ){
+				if( !preg_match('/^\{?[A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{12}\}?$/i', $context['registration']) ){
+					$this->setError( 'Context: registration must be a UUID.' );
+				}
+			}
+
+			if( isset($context['instructor']) ){
+				if( !is_array($context['instructor']) ){
+					$this->setError( 'Context: instructor must be an Agent object.' );
+				}
+			}
+
+			if( isset($context['team']) ){
+				if( !is_array($context['team']) ){
+					$this->setError( 'Context: team must be an Group object.' );
+				}
+			}
+
+			if( isset($context['contextActivities']) ){
+				if( !is_array($context['contextActivities']) ){
+					$this->setError( 'Context: contextActivities must be an object.' );
+				}else{
+					//check properties in contextActivies
+					$contextActivies_valid        = true;
+					$contextActivities_keys  	  = array_keys($context['contextActivities']);
+					$valid_contextActivities_keys = array('parent', 
+														  'grouping', 
+														  'category', 
+														  'other');
+						//check all keys submitted are valid
+					foreach( $contextActivities_keys as $k ){
+						if( !in_array($k, $valid_contextActivities_keys) ){
+							$contextActivies_valid = false;
+						}
+					}
+
+					//if there is an invalid key, exit here
+					if( $contextActivies_valid === false ){
+						$this->setError( 'There is an invalid property in contextActivities.' );
+						return false;
+					}
+
+					//now check all property keys contain an array
+					if( isset($context['contextActivities']['parent']) ){
+						if( !is_array($context['contextActivities']['parent']) ){
+							$this->setError( 'Context: contextActivities: parent must be an object or array of objects.' );
+						}
+					}
+
+					if( isset($context['contextActivities']['grouping']) ){
+						if( !is_array($context['contextActivities']['grouping']) ){
+							$this->setError( 'Context: contextActivities: grouping must be an object or array of objects.' );
+						}
+					}
+
+					if( isset($context['contextActivities']['category']) ){
+						if( !is_array($context['contextActivities']['category']) ){
+							$this->setError( 'Context: contextActivities: category must be an object or array of objects.' );
+						}
+					}
+
+					if( isset($context['contextActivities']['other']) ){
+						if( !is_array($context['contextActivities']['other']) ){
+							$this->setError( 'Context: contextActivities: other must be an object or array of objects.' );
+						}
+					}
+				}
+			}
+
+			if( isset($context['revision']) ){
+				//If Statement's Object is an Agent or Group, don't save
+				$object_type = array('Agent', 'Group');
+				if( !in_array($this->statement['object']['objectType'], $object_type) ){
+					if( !is_string($context['revision']) ){
+						$this->setError( 'Context: revision must be a string.' );
+					}
+				}
+			}
+
+			if( isset($context['platform']) ){
+				//If Statement's Object is an Agent or Group, don't save
+				$object_type = array('Agent', 'Group');
+				if( !in_array($this->statement['object']['objectType'], $object_type) ){
+					if( !is_string($context['platform']) ){
+						$this->setError( 'Context: platform must be a string.' );
+					}
+				}
+			}
+
+			if( isset($context['language']) ){
+				//@todo need to check language is valid rfc 5646 code, if not, reject it.
+				if( !is_string($context['language']) ){
+					$this->setError( 'Context: language must be a string.' );
+				}
+			}
+
+			if( isset($context['statement']) ){
+				if( !preg_match('/^\{?[A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{12}\}?$/i', $context['statement']) ){
+					$this->setError( 'Context: statement must be a UUID of the connected statement.' );
+				}
+			}
+
+			if( isset($context['extensions']) ){
+				if( !is_array($context['extensions']) ){
+					$this->setError( 'Result: extensions must be an object.' );
+				}
+			}
+
+		
 		}
 
 
@@ -824,119 +816,114 @@ class TinCanValidation {
 	*/
 	public function validateResult(){
 
-		if( isset($this->statement['result']) ){
+		if( isset($this->statement['context']) ){
 
-			if( is_array($this->statement['result']) ){
+			$result_check = $this->assertionCheck(
+					( is_array($this->statement['result']) && !empty($this->statement['result']) ),
+					'Result must be an array and can\'t be empty.');
+		
+			if( !$result_check ) return false;
 
-				$result 	  = $this->statement['result'];
-				$result_keys  = array_keys($result);//if result set, grab keys
-				$valid_keys   = array('score', 
-									  'success', 
-									  'completion', 
-									  'response', 
-									  'duration', 
-									  'extensions');
+			$result 	  = $this->statement['result'];
+			$result_keys  = array_keys($result);//if result set, grab keys
+			$valid_keys   = array('score', 
+								  'success', 
+								  'completion', 
+								  'response', 
+								  'duration', 
+								  'extensions');
 
-				//check all keys submitted are valid
-				$result_valid = $this->checkKeys($result_keys, $valid_keys);
+			//check all keys submitted are valid
+			$result_valid = $this->checkKeys($result_keys, $valid_keys);
 
-				//if there is an invalid key, exit here
-				if( $result_valid === false ){
-					$this->setError( 'There is an invalid key in result.' );
-					return false;
-				}
-
-				//now check format of each key section
-				if( isset($result['score']) ){
-					if( !is_array($result['score']) ){
-						$this->setError( 'Result: score must be an object.' );
-					}else{
-						//check contents of score
-						$score_valid 	  = true;
-						$valid_score_keys = array('scaled', 'raw', 'min', 'max');
-						$score_keys 	  = array_keys($result['score']);
-
-						//check all keys submitted are valid
-						foreach( $score_keys as $k ){
-							if( !in_array($k, $valid_score_keys) ){
-								$score_valid = false;
-							}
-						}
-
-						if( $score_valid === false ){
-							$this->setError( 'There is an invalid key in the score object.' );
-							return false;
-						}
-
-						//now check format of each score key
-						if( isset($result['score']['scaled']) ){
-							if( $result['score']['scaled'] > 1 || $result['score']['scaled'] < -1){
-								$this->setError( 'Result: score: scaled must be between 1 and -1.' );
-							}
-						}
-						if( isset($result['score']['max']) ){
-							if( !is_numeric($result['score']['max']) ){
-								$this->setError( 'Result: score: max must be a numeric value.' );
-							}
-							if( $result['score']['max'] < $result['score']['min'] ){
-								$this->setError( 'Result: score: max must be greater than min.' );
-							}
-						}
-						if( isset($result['score']['min']) ){
-							if( !is_numeric($result['score']['min']) ){
-								$this->setError( 'Result: score: min must be a numeric value.' );
-							}
-							if( $result['score']['min'] > $result['score']['max'] ){
-								$this->setError( 'Result: score: min must be less than max.' );
-							}
-						}
-						if( isset($result['score']['raw']) ){
-							if( !is_numeric($result['score']['raw']) ){
-								$this->setError( 'Result: score: raw must be a numeric value.' );
-							}
-							if( ($result['score']['raw'] > $result['score']['max']) || ($result['score']['raw'] < $result['score']['min']) ){
-								$this->setError( 'Result: score: raw must be between max and min.' );
-							}
-						}
-					}
-				}
-
-				if( isset($result['completion']) ){
-					if( !is_bool($result['completion']) ){
-						$this->setError( 'Result: completion must be a boolean.' );
-					}
-				}
-
-				if( isset($result['success']) ){
-					if( !is_bool($result['success']) ){
-						$this->setError( 'Result: success must be a boolean.' );
-					}
-				}
-
-				if( isset($result['duration']) ){
-					if( !is_numeric($result['duration']) ){
-						$this->setError( 'Result: duration must be an integer.' );
-					}
-				}
-
-				if( isset($result['response']) ){
-					if( !is_string($result['response']) ){
-						$this->setError( 'Result: response must be a string.' );
-					}
-				}
-
-				if( isset($result['extensions']) ){
-					if( !is_array($result['extensions']) ){
-						$this->setError( 'Result: extensions must be an object.' );
-					}
-				}
-
-			}else{
-				$this->setError( 'Result must be an object.' );
+			//if there is an invalid key, exit here
+			if( $result_valid === false ){
+				$this->setError( 'There is an invalid key in result.' );
 				return false;
 			}
-		}
 
+			//now check format of each key section
+			if( isset($result['score']) ){
+				if( !is_array($result['score']) ){
+					$this->setError( 'Result: score must be an object.' );
+				}else{
+					//check contents of score
+					$score_valid 	  = true;
+					$valid_score_keys = array('scaled', 'raw', 'min', 'max');
+					$score_keys 	  = array_keys($result['score']);
+					//check all keys submitted are valid
+					foreach( $score_keys as $k ){
+						if( !in_array($k, $valid_score_keys) ){
+							$score_valid = false;
+						}
+					}
+					if( $score_valid === false ){
+						$this->setError( 'There is an invalid key in the score object.' );
+						return false;
+					}
+					//now check format of each score key
+					if( isset($result['score']['scaled']) ){
+						if( $result['score']['scaled'] > 1 || $result['score']['scaled'] < -1){
+							$this->setError( 'Result: score: scaled must be between 1 and -1.' );
+						}
+					}
+					if( isset($result['score']['max']) ){
+						if( !is_numeric($result['score']['max']) ){
+							$this->setError( 'Result: score: max must be a numeric value.' );
+						}
+						if( $result['score']['max'] < $result['score']['min'] ){
+							$this->setError( 'Result: score: max must be greater than min.' );
+						}
+					}
+					if( isset($result['score']['min']) ){
+						if( !is_numeric($result['score']['min']) ){
+							$this->setError( 'Result: score: min must be a numeric value.' );
+						}
+						if( $result['score']['min'] > $result['score']['max'] ){
+							$this->setError( 'Result: score: min must be less than max.' );
+						}
+					}
+					if( isset($result['score']['raw']) ){
+						if( !is_numeric($result['score']['raw']) ){
+							$this->setError( 'Result: score: raw must be a numeric value.' );
+						}
+						if( ($result['score']['raw'] > $result['score']['max']) || ($result['score']['raw'] < $result['score']['min']) ){
+							$this->setError( 'Result: score: raw must be between max and min.' );
+						}
+					}
+				}
+			}
+
+			if( isset($result['completion']) ){
+				if( !is_bool($result['completion']) ){
+					$this->setError( 'Result: completion must be a boolean.' );
+				}
+			}
+
+			if( isset($result['success']) ){
+				if( !is_bool($result['success']) ){
+					$this->setError( 'Result: success must be a boolean.' );
+				}
+			}
+
+			if( isset($result['duration']) ){
+				if( !is_numeric($result['duration']) ){
+					$this->setError( 'Result: duration must be an integer.' );
+				}
+			}
+
+			if( isset($result['response']) ){
+				if( !is_string($result['response']) ){
+					$this->setError( 'Result: response must be a string.' );
+				}
+			}
+
+			if( isset($result['extensions']) ){
+				if( !is_array($result['extensions']) ){
+					$this->setError( 'Result: extensions must be an object.' );
+				}
+			}
+		}
 	}
 
 	/*
