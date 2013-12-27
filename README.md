@@ -6,3 +6,7 @@ Validate a TinCan statement according to the standard http://www.adlnet.gov/wp-c
 ### License
 
 Released under the [MIT license](http://opensource.org/licenses/MIT)
+
+### TODO
+
+This is very much work in progress. @todo is used throughout the code to indicate something still needing done.
