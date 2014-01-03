@@ -7,6 +7,12 @@ Validate a TinCan statement according to the standard http://www.adlnet.gov/wp-c
 
 Released under the [MIT license](http://opensource.org/licenses/MIT)
 
+### Copyright
+
+HT2 http://ht2.co.uk
+
+This class was developed as part of the HT2 Learning Locker project.
+
 ### TODO
 
 This is very much work in progress. @todo is used throughout the code to indicate something still needing done.
